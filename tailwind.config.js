@@ -1,9 +1,6 @@
 /** @type {import('tailwindcss').Config} */
 module.exports = {
-  content: [
-    "./pages/**/*.{js,ts,jsx,tsx}",
-    "./components/**/*.{js,ts,jsx,tsx}",
-  ],
+  content: ["./app/**/*.{js,ts,jsx,tsx}", "./components/**/*.{js,ts,jsx,tsx}"],
   theme: {
     extend: {
       colors: {
@@ -14,8 +11,8 @@ module.exports = {
         light: "#FAFAFA",
       },
       fontFamily: {
-        title: ["Poppins", "sans-serif"],
-        body: ["Roboto", "sans-serif"],
+        title: ["Poppins", "sans-serif"], // Titles use Poppins
+        body: ["Roboto", "sans-serif"], // Body text uses Roboto
       },
       fontSize: {
         title: ["40px", { lineHeight: "48px" }],
