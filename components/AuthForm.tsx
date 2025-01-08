@@ -1,4 +1,6 @@
+"use client";
 import React, { useState } from "react";
+import { useRouter } from "next/navigation"; // Use for redirection
 import { auth } from "../lib/firebase";
 import {
   signInWithEmailAndPassword,
@@ -6,9 +8,10 @@ import {
 } from "firebase/auth";
 
 const AuthForm = () => {
+  const router = useRouter(); // Use router for navigation
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-  const [isSignUp, setIsSignUp] = useState(false); // Toggle between sign-up and login
+  const [isSignUp, setIsSignUp] = useState(false);
   const [error, setError] = useState("");
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -20,32 +23,36 @@ const AuthForm = () => {
       } else {
         await signInWithEmailAndPassword(auth, email, password);
       }
-      alert("Authentication successful!");
+      // Redirect to ChatBox after successful login/signup
+      router.push("/chat"); // Navigate to /chat
     } catch (err: any) {
       setError(err.message);
     }
   };
 
   return (
-    <div>
-      <h2>{isSignUp ? "Sign Up" : "Login"}</h2>
-      <form onSubmit={handleSubmit}>
+    <div className="bg-lightLila rounded-2xl shadow-md p-6 w-full max-w-[996px] mx-auto mt-10">
+      <form onSubmit={handleSubmit} className="flex flex-col">
         <input
           type="email"
           placeholder="Email"
           value={email}
           onChange={(e) => setEmail(e.target.value)}
+          className="p-3 rounded-lg border mb-3"
         />
         <input
           type="password"
           placeholder="Password"
           value={password}
           onChange={(e) => setPassword(e.target.value)}
+          className="p-3 rounded-lg border mb-3"
         />
-        <button type="submit">{isSignUp ? "Sign Up" : "Login"}</button>
+        <button type="submit" className="bg-lila text-light p-3 rounded-lg">
+          {isSignUp ? "Sign Up" : "Login"}
+        </button>
+        {error && <p className="text-red-500 mt-3">{error}</p>}
       </form>
-      {error && <p>{error}</p>}
-      <button onClick={() => setIsSignUp(!isSignUp)}>
+      <button onClick={() => setIsSignUp(!isSignUp)} className="mt-4">
         {isSignUp ? "Switch to Login" : "Switch to Sign Up"}
       </button>
     </div>

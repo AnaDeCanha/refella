@@ -1,5 +1,13 @@
-import ChatBox from "../components/Chatbox";
+"use client";
 
-export default function Home() {
-  return <ChatBox />;
-}
+import AuthForm from "../components/AuthForm";
+
+const HomePage = () => {
+  return (
+    <div>
+      <AuthForm />
+    </div>
+  );
+};
+
+export default HomePage;
