@@ -31,7 +31,7 @@ const AuthForm = () => {
   };
 
   return (
-    <div className="bg-lightLila rounded-2xl shadow-md p-6 w-full max-w-[996px] mx-auto mt-10">
+    <div className="bg-lightLila rounded-2xl shadow-md p-6 w-full max-w-[500px] mx-auto mt-10">
       <form onSubmit={handleSubmit} className="flex flex-col">
         <input
           type="email"
