@@ -1,36 +1,46 @@
 import { db } from "../lib/firebase";
 import {
-  collection,
   doc,
+  collection,
   getDoc,
   setDoc,
   serverTimestamp,
 } from "firebase/firestore";
 
 const saveSessionTimestamp = async (email: string) => {
-  const userRef = doc(collection(db, "users"), email); // Use email as the document ID
+  const userRef = doc(collection(db, "users"), email);
 
   try {
     const userDoc = await getDoc(userRef);
     const now = new Date();
+    const oneWeekAgo = new Date(now.setDate(now.getDate() - 7));
 
-    if (userDoc.exists()) {
-      const lastSession = userDoc.data().lastSession.toDate();
-      const oneWeekAgo = new Date(now.setDate(now.getDate() - 7));
+    // Check if the user has an active session within the past week
+    const lastSession = userDoc.data()?.lastSession?.toDate();
 
-      if (lastSession > oneWeekAgo) {
-        return {
-          allowed: false,
-          message: "Session limit reached. Try again later.",
-        };
-      }
+    if (lastSession && lastSession > oneWeekAgo) {
+      return {
+        allowed: false,
+        message: "You’ve reached your weekly session limit. Come back later!",
+      };
     }
 
-    await setDoc(userRef, { lastSession: serverTimestamp() }, { merge: true });
-    return { allowed: true };
+    // Start a new session and reset message count
+    await setDoc(
+      userRef,
+      { lastSession: serverTimestamp(), messageCount: 0 },
+      { merge: true }
+    );
+
+    return {
+      allowed: true,
+    };
   } catch (error) {
     console.error("Error saving session:", error);
-    return { allowed: false, message: "Server error. Please try again later." };
+    return {
+      allowed: false,
+      message: "Server error. Please try again later.",
+    };
   }
 };
 
