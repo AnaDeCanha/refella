@@ -1,10 +1,12 @@
 "use client";
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
+import { useRouter } from "next/navigation"; // For redirection
 import { auth } from "../lib/firebase";
 import saveSessionTimestamp from "../utils/saveSessionTimestamp";
-import incrementMessageCount from "../utils/messageCount"; // Corrected import
+import incrementMessageCount from "../utils/messageCount";
 
 const ChatBox: React.FC = () => {
+  const router = useRouter(); // Router for navigation
   const [lastMessage, setLastMessage] = useState({
     role: "ai",
     title: "Welcome Message",
@@ -15,6 +17,38 @@ const ChatBox: React.FC = () => {
   const [input, setInput] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState("");
+  const [sessionAllowed, setSessionAllowed] = useState<boolean | null>(null);
+  const [sessionError, setSessionError] = useState("");
+
+  useEffect(() => {
+    const checkSession = async () => {
+      const user = auth.currentUser;
+
+      if (!user) {
+        setSessionError("You must log in first.");
+        setSessionAllowed(false);
+        return;
+      }
+
+      try {
+        const sessionCheck = await saveSessionTimestamp(user.email!);
+        if (!sessionCheck.allowed) {
+          setSessionError(sessionCheck.message);
+          setSessionAllowed(false);
+        } else {
+          setSessionAllowed(true);
+        }
+      } catch (error) {
+        console.error("Error checking session:", error);
+        setSessionError(
+          "An unexpected error occurred. Please try again later."
+        );
+        setSessionAllowed(false);
+      }
+    };
+
+    checkSession();
+  }, []);
 
   const mockAIResponse = (userMessage: string) => {
     if (userMessage.toLowerCase().includes("help")) {
@@ -46,13 +80,6 @@ const ChatBox: React.FC = () => {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
-    // Check if the user is logged in first
-    const user = auth.currentUser;
-    if (!user) {
-      setError("You must log in first.");
-      return;
-    }
-
     // Check if the input is empty
     if (!input.trim()) {
       setError("Message cannot be empty.");
@@ -62,16 +89,8 @@ const ChatBox: React.FC = () => {
     setError("");
     setIsLoading(true);
 
-    // Verify session and message count
-    const sessionCheck = await saveSessionTimestamp(user.email!);
-    if (!sessionCheck.allowed) {
-      setError(sessionCheck.message);
-      setIsLoading(false);
-      return;
-    }
-
-    // Increment message count
-    await incrementMessageCount(user.email!);
+    // Increment message count for the session
+    await incrementMessageCount(auth.currentUser!.email!);
 
     // Update last message with user's input
     setLastMessage({
@@ -95,6 +114,35 @@ const ChatBox: React.FC = () => {
       setIsLoading(false);
     }, 1000);
   };
+
+  if (sessionAllowed === null) {
+    return (
+      <div className="bg-lightLila rounded-2xl shadow-md p-6 w-full max-w-[996px] mx-auto mt-10">
+        <div className="text-dark font-body text-body text-center">
+          Checking session, please wait...
+        </div>
+      </div>
+    );
+  }
+
+  if (sessionAllowed === false) {
+    return (
+      <div className="bg-lightLila rounded-2xl shadow-md p-6 w-full max-w-[996px] mx-auto mt-10">
+        <div className="p-8 rounded-2xl text-dark font-body text-body">
+          <h2 className="font-title text-subheadingMobile md:text-subheading text-dark mb-4">
+            Session Limit Reached
+          </h2>
+          <p>{sessionError}</p>
+          <button
+            onClick={() => router.push("/")} // Redirect to the main login page
+            className="bg-lila text-light p-3 mt-4 rounded-lg hover:bg-lila-dark focus:outline-none"
+          >
+            Go to Login
+          </button>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="bg-lightLila rounded-2xl shadow-md p-6 w-full max-w-[996px] mx-auto mt-10">

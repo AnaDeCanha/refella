@@ -6,6 +6,7 @@ import {
   signInWithEmailAndPassword,
   createUserWithEmailAndPassword,
 } from "firebase/auth";
+import saveSessionTimestamp from "../utils/saveSessionTimestamp"; // Import the session function
 
 const AuthForm = () => {
   const router = useRouter(); // Use router for navigation
@@ -16,17 +17,26 @@ const AuthForm = () => {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    setError("");
+    setError(""); // Clear any previous errors
     try {
+      // Handle login or sign-up
       if (isSignUp) {
         await createUserWithEmailAndPassword(auth, email, password);
       } else {
         await signInWithEmailAndPassword(auth, email, password);
       }
-      // Redirect to ChatBox after successful login/signup
+
+      // Check the session limit
+      const sessionCheck = await saveSessionTimestamp(email);
+      if (!sessionCheck.allowed) {
+        setError(sessionCheck.message); // Show the session limit error
+        return; // Prevent redirection
+      }
+
+      // Redirect to ChatBox after successful login and session validation
       router.push("/chat"); // Navigate to /chat
     } catch (err: any) {
-      setError(err.message);
+      setError(err.message); // Show authentication errors
     }
   };
 
