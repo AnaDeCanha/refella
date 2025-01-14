@@ -1,6 +1,6 @@
 "use client";
 import React, { useState } from "react";
-import { useRouter } from "next/navigation"; // Use for redirection
+import { useRouter } from "next/navigation"; // For redirection
 import { auth } from "../lib/firebase";
 import {
   signInWithEmailAndPassword,
@@ -14,10 +14,13 @@ const AuthForm = () => {
   const [password, setPassword] = useState("");
   const [isSignUp, setIsSignUp] = useState(false);
   const [error, setError] = useState("");
+  const [isLoading, setIsLoading] = useState(false);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError(""); // Clear any previous errors
+    setIsLoading(true); // Indicate loading
+
     try {
       // Handle login or sign-up
       if (isSignUp) {
@@ -26,10 +29,19 @@ const AuthForm = () => {
         await signInWithEmailAndPassword(auth, email, password);
       }
 
+      // Ensure the user is logged in before checking the session
+      const currentUser = auth.currentUser;
+      if (!currentUser || !currentUser.email) {
+        setError("An error occurred. Please try logging in again.");
+        setIsLoading(false);
+        return;
+      }
+
       // Check the session limit
-      const sessionCheck = await saveSessionTimestamp(email);
+      const sessionCheck = await saveSessionTimestamp(currentUser.email);
       if (!sessionCheck.allowed) {
         setError(sessionCheck.message); // Show the session limit error
+        setIsLoading(false); // Stop loading
         return; // Prevent redirection
       }
 
@@ -37,6 +49,8 @@ const AuthForm = () => {
       router.push("/chat"); // Navigate to /chat
     } catch (err: any) {
       setError(err.message); // Show authentication errors
+    } finally {
+      setIsLoading(false); // Always stop loading
     }
   };
 
@@ -57,8 +71,12 @@ const AuthForm = () => {
           onChange={(e) => setPassword(e.target.value)}
           className="p-3 rounded-lg border mb-3"
         />
-        <button type="submit" className="bg-lila text-light p-3 rounded-lg">
-          {isSignUp ? "Sign Up" : "Login"}
+        <button
+          type="submit"
+          className="bg-lila text-light p-3 rounded-lg"
+          disabled={isLoading}
+        >
+          {isLoading ? "Loading..." : isSignUp ? "Sign Up" : "Login"}
         </button>
         {error && <p className="text-red-500 mt-3">{error}</p>}
       </form>
