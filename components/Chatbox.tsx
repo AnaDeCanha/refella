@@ -1,29 +1,37 @@
 "use client";
-import React, { useState, useEffect } from "react";
-import { useRouter } from "next/navigation"; // For redirection
+
+import React, { useState, useEffect, useRef } from "react";
+import { useRouter } from "next/navigation";
 import { auth } from "../lib/firebase";
 import saveSessionTimestamp from "../utils/saveSessionTimestamp";
 import incrementMessageCount from "../utils/messageCount";
 
 const ChatBox: React.FC = () => {
-  const router = useRouter(); // Router for navigation
-  const [lastMessage, setLastMessage] = useState({
-    role: "ai",
-    title: "Welcome Message",
-    content:
-      "Hi! I'm Refella—your AI-powered reflection companion.\n\nI know how hard it can be to capture your progress and share your work in a meaningful way. That's why I'm here! I'll guide you through quick, thoughtful conversations to help you reflect, learn, and craft impactful posts that highlight your growth and expertise.",
-  });
-
+  const router = useRouter();
+  const [messages, setMessages] = useState<
+    { role: "user" | "ai"; content: string }[]
+  >([
+    {
+      role: "ai",
+      content:
+        "Hi! I'm Refella—your AI-powered reflection companion. Let's start your reflection session!",
+    },
+  ]);
   const [input, setInput] = useState("");
   const [isLoading, setIsLoading] = useState(false);
-  const [error, setError] = useState("");
   const [sessionAllowed, setSessionAllowed] = useState<boolean | null>(null);
   const [sessionError, setSessionError] = useState("");
+  const chatEndRef = useRef<HTMLDivElement | null>(null);
+  const chatContainerRef = useRef<HTMLDivElement | null>(null);
+
+  // Scroll to the latest message
+  useEffect(() => {
+    chatEndRef.current?.scrollIntoView({ behavior: "smooth" });
+  }, [messages]);
 
   useEffect(() => {
     const checkSession = async () => {
       const user = auth.currentUser;
-
       if (!user) {
         setSessionError("You must log in first.");
         setSessionAllowed(false);
@@ -50,116 +58,95 @@ const ChatBox: React.FC = () => {
     checkSession();
   }, []);
 
-  const mockAIResponse = (userMessage: string) => {
-    if (userMessage.toLowerCase().includes("help")) {
-      return {
-        title: "Help Request",
-        content:
-          "Sure! Let's start by identifying your focus. What task or project would you like to reflect on?",
-      };
-    } else if (userMessage.toLowerCase().includes("progress")) {
-      return {
-        title: "Progress Reflection",
-        content:
-          "Great! Can you tell me about the progress you've made recently? What are you most proud of?",
-      };
-    } else if (userMessage.toLowerCase().includes("challenge")) {
-      return {
-        title: "Challenge Discussion",
-        content:
-          "Challenges are part of growth. What's been the most significant challenge for you recently?",
-      };
-    } else {
-      return {
-        title: "Follow-Up",
-        content: "Interesting! Can you elaborate on that?",
-      };
-    }
-  };
-
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-
-    // Check if the input is empty
-    if (!input.trim()) {
-      setError("Message cannot be empty.");
+    if (!input.trim() || isLoading) {
       return;
     }
 
-    setError("");
+    const userMessage = input.trim();
+    setInput("");
     setIsLoading(true);
 
-    // Increment message count for the session
-    await incrementMessageCount(auth.currentUser!.email!);
+    setMessages((prevMessages) => [
+      ...prevMessages,
+      { role: "user", content: userMessage },
+    ]);
 
-    // Update last message with user's input
-    setLastMessage({
-      role: "user",
-      title: "Your Message",
-      content: input,
-    });
+    const messageCheck = await incrementMessageCount(auth.currentUser!.email!);
+    if (!messageCheck.allowed) {
+      setSessionError(messageCheck.message);
+      setSessionAllowed(false);
+      setIsLoading(false);
+      return;
+    }
+
+    setMessages((prevMessages) => [
+      ...prevMessages,
+      { role: "ai", content: "Typing..." },
+    ]);
 
     setTimeout(() => {
-      // Generate mock AI response
-      const aiResponse = mockAIResponse(input);
-
-      // Update last message with AI response
-      setLastMessage({
-        role: "ai",
-        title: aiResponse.title,
-        content: aiResponse.content,
-      });
-
-      setInput(""); // Clear input field
+      const aiResponse = "Interesting! Can you elaborate on that?"; // Mock AI response
+      setMessages((prevMessages) => [
+        ...prevMessages.slice(0, -1),
+        { role: "ai", content: aiResponse },
+      ]);
       setIsLoading(false);
-    }, 1000);
+    }, 1500);
   };
 
   if (sessionAllowed === null) {
     return (
-      <div className="bg-lightLila rounded-2xl shadow-md p-6 w-full max-w-[996px] mx-auto mt-10">
-        <div className="text-dark font-body text-body text-center">
-          Checking session, please wait...
-        </div>
+      <div className="bg-lightLila rounded-2xl shadow-md p-6 w-full max-w-[996px] mx-auto mt-10 text-center">
+        Checking session, please wait...
       </div>
     );
   }
 
   if (sessionAllowed === false) {
     return (
-      <div className="bg-lightLila rounded-2xl shadow-md p-6 w-full max-w-[996px] mx-auto mt-10">
-        <div className="p-8 rounded-2xl text-dark font-body text-body">
-          <h2 className="font-title text-subheadingMobile md:text-subheading text-dark mb-4">
-            Session Limit Reached
-          </h2>
-          <p>{sessionError}</p>
-          <button
-            onClick={() => router.push("/")} // Redirect to the main login page
-            className="bg-lila text-light p-3 mt-4 rounded-lg hover:bg-lila-dark focus:outline-none"
-          >
-            Go to Login
-          </button>
-        </div>
+      <div className="bg-lightLila rounded-2xl shadow-md p-6 w-full max-w-[996px] mx-auto mt-10 text-center">
+        <h2 className="font-title text-subheadingMobile md:text-subheading text-dark mb-4">
+          Session Limit Reached
+        </h2>
+        <p>{sessionError}</p>
+        <button
+          onClick={() => router.push("/")}
+          className="bg-lila text-light p-3 mt-4 rounded-lg hover:bg-lila-dark"
+        >
+          Go to Login
+        </button>
       </div>
     );
   }
 
   return (
     <div className="bg-lightLila rounded-2xl shadow-md p-6 w-full max-w-[996px] mx-auto mt-10">
-      <div className="p-8 rounded-2xl text-dark font-body text-body">
-        <h2 className="font-title text-subheadingMobile md:text-subheading text-dark mb-4">
-          {lastMessage.title}
-        </h2>
-        <p>{lastMessage.content}</p>
-        {isLoading && <div className="mt-4 text-dark">Typing...</div>}
+      <div
+        ref={chatContainerRef}
+        className="p-4 rounded-2xl text-dark font-body text-body h-80 overflow-y-auto bg-lightLila"
+      >
+        {messages.map((msg, index) => (
+          <div
+            key={index}
+            className={`mb-3 ${
+              msg.role === "user" ? "text-right" : "text-left"
+            }`}
+          >
+            <p
+              className={`inline-block px-4 py-2 rounded-lg ${
+                msg.role === "user" ? "bg-lila text-light" : "bg-calm text-dark"
+              }`}
+            >
+              {msg.content}
+            </p>
+          </div>
+        ))}
+        <div ref={chatEndRef} />
       </div>
 
       <form onSubmit={handleSubmit} className="flex flex-col mt-4">
-        <p
-          className={`text-red-500 mb-2 h-6 ${error ? "visible" : "invisible"}`}
-        >
-          {error}
-        </p>
         <textarea
           value={input}
           onChange={(e) => setInput(e.target.value)}
@@ -170,15 +157,16 @@ const ChatBox: React.FC = () => {
             }
           }}
           placeholder="Type your message..."
-          className="flex-1 p-3 rounded-lg border border-lila-300 focus:outline-none focus:ring-2 focus:ring-lila resize-y"
+          className="flex-1 p-3 rounded-lg border border-lila-300 focus:ring-2 focus:ring-lila resize-y"
           rows={3}
+          disabled={isLoading}
         />
         <button
           type="submit"
           disabled={isLoading}
-          className="bg-lila text-light p-3 mt-2 rounded-lg hover:bg-lila disabled:bg-gray-400 ring-2 ring-lila focus:outline-none"
+          className="bg-lila text-light p-3 mt-2 rounded-lg hover:bg-lila disabled:bg-gray-400 focus:outline-none"
         >
-          Send
+          {isLoading ? "Generating..." : "Send"}
         </button>
       </form>
     </div>
